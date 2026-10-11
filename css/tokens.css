@@ -1,0 +1,124 @@
+/* RedSun design tokens + primitives shared by every page. */
+:root {
+  --paper: #FBF6EF;
+  --paper-2: #F4EADF;
+  --card: #FFFDF9;
+  --ink: #1D1412;
+  --ink-muted: #6E5247;
+  --clay: #E3D3C4;
+  --terra: #A3401E;
+  --terra-700: #84321A;
+  --oxblood: #6E1A12;
+  --sun: #D9962B;
+  --palm: #22403A;
+
+  /* availability states */
+  --st-free: #2F5A50;
+  --st-held: #D9962B;
+  --st-booked: #6E1A12;
+  --st-blocked: #8C7A70;
+
+  /* spacing scale (spacious) */
+  --s-1: 0.5rem;
+  --s-2: 1rem;
+  --s-3: 1.5rem;
+  --s-4: 2.5rem;
+  --s-5: 4rem;
+  --s-6: 6rem;
+
+  /* depth: base → elevated → floating, all tinted toward oxblood */
+  --shadow-elevated:
+    0 1px 2px rgba(63, 14, 9, 0.05),
+    0 4px 12px rgba(63, 14, 9, 0.06),
+    0 12px 28px rgba(63, 14, 9, 0.05);
+  --shadow-floating:
+    0 2px 4px rgba(63, 14, 9, 0.07),
+    0 12px 28px rgba(63, 14, 9, 0.10),
+    0 32px 64px rgba(63, 14, 9, 0.12);
+
+  --spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; scroll-padding-top: 6rem; }
+body { background-color: var(--paper); color: var(--ink); }
+.display-tight { letter-spacing: -0.03em; }
+.copy { line-height: 1.7; }
+.tabular { font-variant-numeric: tabular-nums; }
+.elevated { box-shadow: var(--shadow-elevated); }
+.floating { box-shadow: var(--shadow-floating); }
+
+/* grain for depth */
+.grain { position: relative; isolation: isolate; }
+.grain::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.35;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+}
+
+/* ── interactive primitives ─────────────────────────────────────────── */
+.btn {
+  cursor: pointer;
+  transition-property: transform, opacity, background-color, border-color, color, box-shadow;
+  transition-duration: 220ms;
+  transition-timing-function: var(--spring);
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0) scale(0.98); }
+.btn:disabled, .btn[aria-disabled='true'] { cursor: not-allowed; opacity: 0.5; transform: none; }
+.btn:focus-visible, .focus-ring:focus-visible {
+  outline: 2px solid var(--terra);
+  outline-offset: 3px;
+}
+.on-dark .btn:focus-visible, .on-dark .focus-ring:focus-visible { outline-color: var(--sun); }
+
+.field {
+  width: 100%;
+  min-height: 2.875rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--clay);
+  background: var(--card);
+  padding: 0.625rem 0.875rem;
+  color: var(--ink);
+  transition-property: border-color, box-shadow;
+  transition-duration: 160ms;
+}
+.field:hover { border-color: #CDB8A5; }
+.field:focus-visible { outline: none; border-color: var(--terra); box-shadow: 0 0 0 3px rgba(163, 64, 30, 0.18); }
+.field[aria-invalid='true'] { border-color: #B3261E; }
+
+.seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; padding: 4px; border-radius: 999px; background: var(--paper-2); border: 1px solid var(--clay); }
+.seg button {
+  min-height: 2.5rem;
+  padding: 0 1rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--ink-muted);
+  cursor: pointer;
+  transition-property: background-color, color, transform, box-shadow;
+  transition-duration: 200ms;
+  transition-timing-function: var(--spring);
+}
+.seg button:hover { color: var(--ink); }
+.seg button:active { transform: scale(0.97); }
+.seg button:focus-visible { outline: 2px solid var(--terra); outline-offset: 2px; }
+.seg button[aria-pressed='true'] { background: var(--card); color: var(--ink); box-shadow: var(--shadow-elevated); }
+
+/* state swatches — never colour alone: each has a pattern too */
+.st { border-radius: 4px; }
+.st-free { background: transparent; box-shadow: inset 0 0 0 1.5px var(--st-free); }
+.st-held { background: repeating-linear-gradient(135deg, var(--st-held) 0 3px, #F3D9A8 3px 6px); }
+.st-booked { background: var(--st-booked); }
+.st-blocked { background: repeating-linear-gradient(45deg, var(--st-blocked) 0 2px, transparent 2px 5px); box-shadow: inset 0 0 0 1px var(--st-blocked); }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .btn, .seg button { transition-duration: 1ms !important; }
+  .btn:hover, .btn:active { transform: none; }
+}

@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<script>window.REDSUN_PREVIEW = true;</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RedSun Villa</title>
+<meta name="description" content="RedSun Villa — villa 4 tầng có phòng xông hơi. Thuê từng phòng hoặc nguyên căn.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='9' fill='%23A3401E'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="js/tw-config.js"></script>
+<link rel="stylesheet" href="css/tokens.css">
+<style>
+  /* hero atmosphere: layered radial light over the photo */
+  .sun-glow {
+    background-image:
+      radial-gradient(42rem 30rem at 82% 8%, rgba(217, 150, 43, 0.42), transparent 62%),
+      radial-gradient(56rem 36rem at 10% 0%, rgba(163, 64, 30, 0.30), transparent 60%),
+      radial-gradient(60rem 30rem at 50% 120%, rgba(63, 14, 9, 0.55), transparent 70%);
+  }
+  /* the building: floors stack bottom → top on large screens */
+  .roof { clip-path: polygon(8% 100%, 50% 0, 92% 100%); }
+  .sun-disc {
+    background: radial-gradient(circle at 50% 45%, #F3C46A 0%, #D9962B 38%, #A3401E 72%, rgba(163, 64, 30, 0) 73%);
+  }
+  .floor-tab {
+    transition-property: background-color, color, border-color, transform, box-shadow;
+    transition-duration: 240ms;
+    transition-timing-function: var(--spring);
+  }
+  .floor-tab:hover { transform: translateX(3px); }
+  .floor-tab:active { transform: scale(0.985); }
+  .floor-tab:focus-visible { outline: 2px solid var(--terra); outline-offset: 3px; }
+  .floor-tab[aria-selected='true'] { background: var(--terra); color: #FBF6EF; border-color: var(--terra); box-shadow: var(--shadow-elevated); }
+  .floor-tab[aria-selected='true'] .muted { color: rgba(251, 246, 239, 0.8); }
+  @media (max-width: 1023px) { .floor-tab:hover { transform: translateY(-1px); } }
+  /* ── full-bleed photo section (amenities) ── */
+  .chapter { position: relative; isolation: isolate; display: flex; min-height: 92svh; align-items: flex-end; overflow: hidden; background: var(--ink); }
+  .chapter-img { position: absolute; inset: 0; z-index: -3; height: 100%; width: 100%; object-fit: cover; }
+  .chapter-tint { position: absolute; inset: 0; z-index: -2; background: rgba(163, 64, 30, 0.25); mix-blend-mode: multiply; }
+  .scrim-l { position: absolute; inset: 0; z-index: -1; background: linear-gradient(to right, rgba(0,0,0,.6), rgba(0,0,0,.2) 50%, transparent); }
+  .scrim-b { position: absolute; inset-inline: 0; bottom: 0; height: 60%; z-index: -1; background: linear-gradient(to top, rgba(0,0,0,.75), rgba(0,0,0,.25) 45%, transparent); }
+  .chapter-body { position: relative; margin-inline: auto; width: 100%; max-width: 72rem; padding-inline: 1rem; }
+  @media (min-width: 640px) { .chapter-body { padding-inline: 2rem; } }
+  .chapter-eyebrow { margin-bottom: 1rem; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--sun); }
+  .chapter-title { font-family: 'Playfair Display', Georgia, serif; font-weight: 600; letter-spacing: -0.03em; line-height: 1.02; font-size: clamp(2.5rem, 6vw, 4.5rem); max-width: 48rem; }
+  .chapter-title { color: #FBF6EF; }
+  .chapter-lead { margin-top: 1.25rem; max-width: 36rem; font-size: 1.0625rem; line-height: 1.7; color: rgba(251, 246, 239, 0.85); }
+
+  /* search bar segments */
+  .seg-field { display: block; padding: 0.625rem 1.25rem; border-radius: 1.5rem; }
+  .seg-label { display: block; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-muted); }
+  .seg-field .field, .seg-value {
+    min-height: 0; padding: 0.125rem 0 0; border: 0; border-radius: 0; background: transparent;
+    font-size: 1rem; font-weight: 600; color: var(--ink); box-shadow: none !important;
+  }
+  .seg-field .field:hover, .seg-value:hover { transform: none; }
+  .seg-field:hover { background: var(--paper-2); }
+  .seg-field:focus-within { background: var(--paper-2); }
+  .seg-field .field:focus-visible, .seg-value:focus-visible { outline: 2px solid var(--terra); outline-offset: 4px; border-radius: 6px; }
+  .panel-in { animation: panelIn 420ms var(--ease-out) both; }
+  @keyframes panelIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .panel-in { animation: none; } .floor-tab:hover { transform: none; } }
+</style>
+</head>
+<body class="font-sans antialiased">
+<div style="position:fixed;left:12px;bottom:12px;z-index:80" class="rounded-full bg-ink/85 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-paper backdrop-blur-sm" role="note">Bản xem thử · Preview — đặt phòng là demo</div>
+<a href="#booking" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-full focus:bg-ink focus:px-4 focus:py-2 focus:text-paper" data-i18n="nav.book">Đặt phòng</a>
+
+<!-- ═══ nav (floating layer) ═══════════════════════════════════════════ -->
+<header class="fixed inset-x-0 top-3 z-50 px-4">
+  <nav class="mx-auto flex max-w-6xl items-center justify-between gap-2 rounded-full border border-clay/70 bg-paper/85 py-2 pl-3 pr-2 backdrop-blur-md floating" aria-label="Primary">
+    <a href="#top" class="btn flex items-center gap-2.5 rounded-full px-2 py-1" id="brand">
+      <span id="brand-mark" aria-hidden="true" class="grid h-8 w-8 place-items-center rounded-full bg-terra text-paper">
+        <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.25" fill="currentColor" stroke="none"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6"/></svg>
+      </span>
+      <span class="font-display text-xl font-semibold display-tight">RedSun</span>
+    </a>
+
+    <div class="hidden items-center gap-1 lg:flex">
+      <a href="#around" class="btn rounded-full px-3.5 py-2 text-sm font-medium text-ink-2 hover:bg-paper-2 hover:text-ink" data-i18n="nav.around">Xung quanh</a>
+      <a href="#floors" class="btn rounded-full px-3.5 py-2 text-sm font-medium text-ink-2 hover:bg-paper-2 hover:text-ink" data-i18n="nav.floors">Các tầng</a>
+      <a href="#amenities" class="btn rounded-full px-3.5 py-2 text-sm font-medium text-ink-2 hover:bg-paper-2 hover:text-ink" data-i18n="nav.amenities">Tiện ích</a>
+      <a href="#availability" class="btn rounded-full px-3.5 py-2 text-sm font-medium text-ink-2 hover:bg-paper-2 hover:text-ink" data-i18n="nav.availability">Lịch trống</a>
+      <a href="#contact" class="btn rounded-full px-3.5 py-2 text-sm font-medium text-ink-2 hover:bg-paper-2 hover:text-ink" data-i18n="nav.contact">Liên hệ</a>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <div class="seg !p-[3px]" role="group" data-i18n-attr="aria-label:nav.lang">
+        <button type="button" data-lang-btn="vi" class="!min-h-[2.25rem] !px-2.5 text-xs" aria-pressed="true">VI</button>
+        <button type="button" data-lang-btn="en" class="!min-h-[2.25rem] !px-2.5 text-xs" aria-pressed="false">EN</button>
+      </div>
+      <a href="#booking" class="btn hidden rounded-full bg-terra px-5 py-2.5 text-sm font-semibold text-paper hover:bg-terra-700 sm:inline-flex" data-i18n="nav.book">Đặt phòng</a>
+      <button type="button" id="menu-btn" class="btn grid h-11 w-11 place-items-center rounded-full text-ink hover:bg-paper-2 lg:hidden" aria-expanded="false" aria-controls="mobile-menu" data-i18n-attr="aria-label:nav.menu">
+        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </nav>
+  <div id="mobile-menu" class="mx-auto mt-2 hidden max-w-6xl rounded-3xl border border-clay/70 bg-paper-card p-2 floating lg:hidden">
+    <a href="#around" class="btn block rounded-2xl px-4 py-3 font-medium hover:bg-paper-2" data-i18n="nav.around">Xung quanh</a>
+    <a href="#floors" class="btn block rounded-2xl px-4 py-3 font-medium hover:bg-paper-2" data-i18n="nav.floors">Các tầng</a>
+    <a href="#amenities" class="btn block rounded-2xl px-4 py-3 font-medium hover:bg-paper-2" data-i18n="nav.amenities">Tiện ích</a>
+    <a href="#availability" class="btn block rounded-2xl px-4 py-3 font-medium hover:bg-paper-2" data-i18n="nav.availability">Lịch trống</a>
+    <a href="#contact" class="btn block rounded-2xl px-4 py-3 font-medium hover:bg-paper-2" data-i18n="nav.contact">Liên hệ</a>
+    <a href="#booking" class="btn mt-1 block rounded-2xl bg-terra px-4 py-3 text-center font-semibold text-paper hover:bg-terra-700" data-i18n="nav.book">Đặt phòng</a>
+  </div>
+</header>
+
+<main>
+<!-- ═══ hero: full screen, search bar inside, fades into the dark scenery section ═══ -->
+<section id="top" class="on-dark relative isolate flex min-h-[100svh] flex-col justify-end overflow-hidden bg-ink">
+  <img id="hero-img" src="https://placehold.co/1920x1200/6E1A12/6E1A12" alt="" class="absolute inset-0 -z-10 h-full w-full object-cover" fetchpriority="high">
+  <span aria-hidden="true" class="absolute inset-0 -z-10 bg-terra/30 mix-blend-multiply"></span>
+  <span aria-hidden="true" class="sun-glow absolute inset-0 -z-10"></span>
+  <!-- left scrim for the headline, and a long fade into the next (dark) section -->
+  <span aria-hidden="true" class="absolute inset-0 -z-10 bg-gradient-to-r from-black/60 via-black/20 to-transparent"></span>
+  <span aria-hidden="true" class="absolute inset-x-0 bottom-0 -z-10 h-[70%] bg-gradient-to-b from-transparent via-ink/60 to-ink"></span>
+
+  <div class="relative mx-auto w-full max-w-6xl px-4 pb-10 pt-32 sm:px-8 sm:pb-14">
+    <p class="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-sun" data-i18n="hero.eyebrow">Villa nghỉ dưỡng · 4 tầng · Phòng xông hơi</p>
+    <h1 class="font-display display-tight max-w-3xl text-[clamp(2.75rem,7.5vw,5.5rem)] font-semibold leading-[1.02] text-paper">
+      <span data-i18n="hero.title1">Một ngôi nhà,</span><br>
+      <span class="italic text-sun-200" data-i18n="hero.title2">bốn tầng nắng.</span>
+    </h1>
+    <p class="copy mt-5 max-w-xl text-[1.0625rem] text-paper/85" data-i18n="hero.lead"></p>
+
+    <!-- search bar: one surface, segments divided by hairlines -->
+    <form id="hero-search" class="mt-10 rounded-[2rem] bg-paper-card p-2 text-ink floating" novalidate>
+      <div class="grid grid-cols-1 divide-y divide-clay/70 lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.35fr)_auto] lg:items-center lg:divide-x lg:divide-y-0">
+        <div class="p-2 lg:pr-4">
+          <div class="seg w-full lg:w-auto" role="group" data-i18n-attr="aria-label:search.mode">
+            <button type="button" data-hero-mode="room" aria-pressed="true" data-i18n="search.mode.room">Chọn phòng</button>
+            <button type="button" data-hero-mode="villa" aria-pressed="false" data-i18n="search.mode.villa">Nguyên căn</button>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 divide-x divide-clay/70 lg:contents">
+          <label class="seg-field block">
+            <span class="seg-label" data-i18n="search.checkin">Nhận phòng</span>
+            <input type="date" name="checkIn">
+          </label>
+          <label class="seg-field block">
+            <span class="seg-label" data-i18n="search.checkout">Trả phòng</span>
+            <input type="date" name="checkOut">
+          </label>
+        </div>
+        <div class="seg-field relative">
+          <span class="seg-label" id="guests-label" data-i18n="search.guests">Khách</span>
+          <button type="button" id="guests-btn" class="seg-value btn w-full truncate whitespace-nowrap text-left" aria-haspopup="dialog" aria-expanded="false" aria-describedby="guests-label"></button>
+          <input type="hidden" name="adults" value="2">
+          <input type="hidden" name="children" value="0">
+          <div id="guests-pop" role="dialog" class="absolute bottom-full left-0 right-0 z-[60] mb-3 hidden rounded-3xl border border-clay/70 bg-paper-card p-5 floating lg:left-auto lg:w-80"></div>
+        </div>
+        <div class="p-2">
+          <button type="submit" class="btn inline-flex min-h-[3.25rem] w-full items-center justify-center gap-2 rounded-full bg-terra px-7 font-semibold text-paper hover:bg-terra-700 lg:w-auto">
+            <svg viewBox="0 0 20 20" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="9" r="5.5"/><path d="m13.5 13.5 3 3"/></svg>
+            <span data-i18n="search.cta">Xem giá & phòng trống</span>
+          </button>
+        </div>
+      </div>
+    </form>
+
+    <ul class="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-medium text-paper/75">
+      <li class="flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-sun"></span><span data-i18n="fact.floors">4 tầng</span></li>
+      <li class="flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-sun"></span><span data-i18n="fact.rooms">5 phòng</span></li>
+      <li class="flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-sun"></span><span data-i18n="fact.guests">Tối đa 18 khách</span></li>
+      <li class="flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-sun"></span><span data-i18n="fact.sauna">Phòng xông hơi</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- ═══ surroundings: full-screen photos fade one into the next as you scroll ═══ -->
+<section id="around" class="on-dark relative bg-ink" aria-labelledby="around-heading">
+  <div id="around-track" class="relative">
+    <div id="around-pin" class="relative h-[100svh] w-full overflow-hidden">
+      <div id="around-stage" class="absolute inset-0"></div>
+      <span aria-hidden="true" class="pointer-events-none absolute inset-0 bg-terra/10 mix-blend-multiply"></span>
+      <span aria-hidden="true" class="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent"></span>
+      <span aria-hidden="true" class="pointer-events-none absolute inset-x-0 bottom-0 h-[60%] bg-gradient-to-t from-black/75 via-black/25 to-transparent"></span>
+      <!-- joins the hero: starts in the dark the hero fades to -->
+      <span aria-hidden="true" class="pointer-events-none absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-ink to-transparent"></span>
+      <div class="relative z-10 mx-auto flex h-full max-w-6xl flex-col justify-end px-4 pb-10 sm:px-8 sm:pb-14">
+        <div class="max-w-xl text-paper">
+          <p class="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-sun">
+            <span data-i18n="around.eyebrow">Xung quanh</span><span aria-hidden="true">·</span><span id="around-heading" data-i18n="around.title">Cảnh quanh villa</span>
+          </p>
+          <div id="around-text" class="grid" aria-live="polite"></div>
+          <div class="mt-8 flex max-w-md items-center gap-4">
+            <span id="around-count" class="font-display text-xl font-semibold tabular" aria-hidden="true"></span>
+            <span id="around-bars" class="flex flex-1 gap-1.5" aria-hidden="true"></span>
+          </div>
+          <button type="button" id="around-more" class="btn mt-7 inline-flex min-h-[2.75rem] items-center gap-2 rounded-full border border-paper/40 bg-paper/10 px-5 text-sm font-semibold text-paper backdrop-blur-sm hover:border-paper/70 hover:bg-paper/20"></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ floors ═════════════════════════════════════════════════════════ -->
+<section id="floors" class="mx-auto max-w-6xl px-4 py-[var(--s-6)] sm:px-8">
+  <div class="max-w-2xl">
+    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-terra" data-i18n="floors.eyebrow">Bên trong RedSun</p>
+    <h2 class="font-display display-tight mt-3 text-[clamp(2rem,4.2vw,3.25rem)] font-semibold leading-[1.08]" data-i18n="floors.title">Mỗi tầng, một cách ở.</h2>
+    <p class="copy mt-3 text-ink-muted" data-i18n="floors.lead">Chọn một tầng để xem các phòng.</p>
+  </div>
+
+  <div class="mt-[var(--s-4)] grid grid-cols-1 gap-[var(--s-4)] lg:grid-cols-12">
+    <!-- building elevation -->
+    <div class="lg:col-span-4">
+      <div class="relative lg:sticky lg:top-28">
+        <div aria-hidden="true" class="relative hidden h-28 overflow-hidden lg:block">
+          <div class="sun-disc absolute left-1/2 top-1 h-36 w-36 -translate-x-1/2 rounded-full"></div>
+          <div class="roof absolute inset-x-0 bottom-0 h-16 bg-oxblood"></div>
+        </div>
+        <div id="floor-tabs" role="tablist" aria-orientation="vertical" class="grid grid-cols-4 gap-2 lg:flex lg:flex-col-reverse lg:gap-1.5 lg:rounded-b-lg lg:bg-oxblood lg:p-1.5" data-i18n-attr="aria-label:floor.picker"></div>
+        <div aria-hidden="true" class="mt-0 hidden h-3 rounded-full bg-clay lg:block"></div>
+      </div>
+    </div>
+    <!-- floor panel -->
+    <div id="floor-panel" class="lg:col-span-8" role="tabpanel" aria-live="polite"></div>
+  </div>
+</section>
+
+<!-- ═══ amenities: full-bleed photo band ═══════════════════════════════ -->
+<section id="amenities" class="chapter on-dark text-paper">
+  <img data-chapter="amenities" src="https://placehold.co/1920x1200/22403A/22403A" alt="" class="chapter-img" loading="lazy">
+  <span aria-hidden="true" class="chapter-tint"></span>
+  <span aria-hidden="true" class="scrim-l"></span>
+  <span aria-hidden="true" class="scrim-b"></span>
+  <div class="chapter-body pb-[var(--s-6)] pt-40">
+    <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+      <div>
+        <p class="chapter-eyebrow" data-i18n="amen.eyebrow">Dùng chung</p>
+        <h2 class="chapter-title" data-i18n="amen.title">Tiện ích trong villa</h2>
+        <p class="chapter-lead" data-i18n="amen.lead"></p>
+      </div>
+      <a href="#booking" data-goto-villa class="btn inline-flex w-fit shrink-0 items-center gap-2 rounded-full border border-paper/40 bg-paper/10 px-5 py-3 text-sm font-semibold backdrop-blur-sm hover:border-paper/70 hover:bg-paper/20">
+        <span id="villa-from"></span>
+        <svg viewBox="0 0 20 20" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10h11M11 6l4 4-4 4"/></svg>
+      </a>
+    </div>
+    <ul class="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <li class="rounded-2xl border border-paper/15 bg-paper/10 p-5 backdrop-blur-md">
+        <svg viewBox="0 0 24 24" class="h-6 w-6 text-sun" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3c-1 1.5 1 2.5 0 4M12 3c-1 1.5 1 2.5 0 4M16 3c-1 1.5 1 2.5 0 4"/><rect x="3" y="10" width="18" height="10" rx="2"/><path d="M3 15h18"/></svg>
+        <h3 class="mt-4 font-display text-lg font-semibold" data-i18n="amen.sauna"></h3>
+        <p class="copy mt-1 text-sm text-paper/75" data-i18n="amen.sauna.d"></p>
+      </li>
+      <li class="rounded-2xl border border-paper/15 bg-paper/10 p-5 backdrop-blur-md">
+        <svg viewBox="0 0 24 24" class="h-6 w-6 text-sun" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/><path d="M6 17h12"/></svg>
+        <h3 class="mt-4 font-display text-lg font-semibold" data-i18n="amen.kitchen"></h3>
+        <p class="copy mt-1 text-sm text-paper/75" data-i18n="amen.kitchen.d"></p>
+      </li>
+      <li class="rounded-2xl border border-paper/15 bg-paper/10 p-5 backdrop-blur-md">
+        <svg viewBox="0 0 24 24" class="h-6 w-6 text-sun" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3"/><path d="M2 16a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v1.5H6V11a2 2 0 0 0-4 0Z"/><path d="M4 18v2M20 18v2"/></svg>
+        <h3 class="mt-4 font-display text-lg font-semibold" data-i18n="amen.living"></h3>
+        <p class="copy mt-1 text-sm text-paper/75" data-i18n="amen.living.d"></p>
+      </li>
+      <li class="rounded-2xl border border-paper/15 bg-paper/10 p-5 backdrop-blur-md">
+        <svg viewBox="0 0 24 24" class="h-6 w-6 text-sun" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="10" r="2"/><circle cx="15.5" cy="10" r="2"/><path d="M3 15h18"/></svg>
+        <h3 class="mt-4 font-display text-lg font-semibold" data-i18n="amen.kitchenette"></h3>
+        <p class="copy mt-1 text-sm text-paper/75" data-i18n="amen.kitchenette.d"></p>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<dialog id="lightbox" class="m-auto w-[min(100vw-2rem,72rem)] overflow-visible bg-transparent p-0 backdrop:bg-ink/85 backdrop:backdrop-blur-sm">
+  <figure class="relative">
+    <img id="lightbox-img" src="" alt="" class="max-h-[80vh] w-full rounded-2xl object-contain">
+    <figcaption id="lightbox-count" class="mt-3 text-center text-sm text-paper/80"></figcaption>
+  </figure>
+  <button type="button" id="lightbox-prev" class="btn absolute left-2 top-1/2 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-paper/90 text-ink hover:bg-paper sm:-left-16" data-i18n-attr="aria-label:lb.prev">
+    <svg viewBox="0 0 20 20" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.5 5 7.5 10l5 5"/></svg>
+  </button>
+  <button type="button" id="lightbox-next" class="btn absolute right-2 top-1/2 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-paper/90 text-ink hover:bg-paper sm:-right-16" data-i18n-attr="aria-label:lb.next">
+    <svg viewBox="0 0 20 20" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7.5 5 5 5-5 5"/></svg>
+  </button>
+  <button type="button" id="lightbox-close" autofocus class="btn absolute -top-14 right-0 grid h-11 w-11 place-items-center rounded-full bg-paper/90 text-ink hover:bg-paper" data-i18n-attr="aria-label:lb.close">
+    <svg viewBox="0 0 20 20" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 5l10 10M15 5 5 15"/></svg>
+  </button>
+</dialog>
+
+<!-- ═══ availability ═══════════════════════════════════════════════════ -->
+<section id="availability" class="border-b border-clay/70 bg-paper-2">
+  <div class="mx-auto max-w-6xl px-4 py-[var(--s-6)] sm:px-8">
+    <div class="max-w-2xl">
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-terra" data-i18n="avail.eyebrow">Lịch phòng</p>
+      <h2 class="font-display display-tight mt-3 text-[clamp(2rem,4.2vw,3.25rem)] font-semibold leading-[1.08]" data-i18n="avail.title">Xem phòng trống</h2>
+      <p class="copy mt-3 text-ink-muted" data-i18n="avail.lead"></p>
+    </div>
+    <div id="calendar" class="mt-[var(--s-4)]"></div>
+  </div>
+</section>
+
+<!-- ═══ booking ════════════════════════════════════════════════════════ -->
+<section id="booking" class="mx-auto max-w-6xl px-4 py-[var(--s-6)] sm:px-8">
+  <div class="max-w-2xl">
+    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-terra" data-i18n="book.eyebrow">Đặt phòng</p>
+    <h2 class="font-display display-tight mt-3 text-[clamp(2rem,4.2vw,3.25rem)] font-semibold leading-[1.08]" data-i18n="book.title">Đặt phòng trong vài bước.</h2>
+  </div>
+  <div id="booking-app" class="mt-[var(--s-4)] grid grid-cols-1 gap-[var(--s-4)] lg:grid-cols-12"></div>
+</section>
+
+<!-- ═══ contact ════════════════════════════════════════════════════════ -->
+<section id="contact" class="grain on-dark relative bg-oxblood text-paper">
+  <span aria-hidden="true" class="absolute inset-0" style="background-image: radial-gradient(44rem 28rem at 100% 0%, rgba(217,150,43,.25), transparent 60%), radial-gradient(40rem 28rem at 0% 100%, rgba(63,14,9,.7), transparent 60%)"></span>
+  <div class="relative z-10 mx-auto grid max-w-6xl gap-[var(--s-4)] px-4 py-[var(--s-6)] sm:px-8 lg:grid-cols-2 lg:items-center">
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-sun" data-i18n="contact.eyebrow">Liên hệ</p>
+      <h2 class="font-display display-tight mt-3 text-[clamp(2rem,4.2vw,3.25rem)] font-semibold leading-[1.08]" data-i18n="contact.title">Hỏi gì cũng được.</h2>
+      <p class="copy mt-3 max-w-md text-paper/80" data-i18n="contact.lead"></p>
+      <dl id="contact-list" class="mt-8 grid gap-5 sm:grid-cols-2"></dl>
+      <p id="contact-times" class="mt-8 flex flex-wrap gap-2 text-sm"></p>
+    </div>
+    <figure class="overflow-hidden rounded-2xl bg-paper-card floating">
+      <iframe id="map-frame" title="" src="" class="block aspect-[16/10] w-full border-0" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+      <figcaption class="flex flex-wrap items-center justify-between gap-3 px-5 py-4 text-sm text-ink">
+        <span id="map-caption" class="font-semibold"></span>
+        <a id="map-link" href="#" target="_blank" rel="noopener" class="btn inline-flex min-h-[2.5rem] items-center rounded-full bg-terra px-4 font-semibold text-paper hover:bg-terra-700"></a>
+      </figcaption>
+    </figure>
+  </div>
+  <footer class="relative z-10 border-t border-paper/15">
+    <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-sm text-paper/70 sm:px-8">
+      <p>© <span id="year"></span> <span data-i18n="footer.rights">RedSun Villa</span></p>
+      <a href="#top" class="btn rounded-full border border-paper/25 px-4 py-2 text-xs font-semibold text-paper hover:border-paper/60 hover:bg-paper/10" data-i18n="footer.top">Lên đầu trang</a>
+    </div>
+  </footer>
+</section>
+</main>
+
+<script type="module" src="js/site.js"></script>
+</body>
+</html>
