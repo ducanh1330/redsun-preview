@@ -61,6 +61,17 @@ function renderLogin(message) {
       pw.select();
     }
   });
+  // Pages demo: sample data lives in this browser; let testers start over.
+  if (globalThis.REDSUN_PREVIEW) {
+    form.append(h('div', { class: 'mt-5 border-t border-clay/70 pt-4 text-xs text-ink-muted' },
+      h('p', {}, t('mg.demo.local')),
+      btn(t('mg.demo.reset'), async (e) => {
+        e.currentTarget.disabled = true;
+        await fetch('api/__demo/reset', { method: 'POST' }).catch(() => {});
+        flash(t('mg.demo.resetDone'));
+        e.currentTarget.disabled = false;
+      }, 'ghost', { class: 'mt-2' })));
+  }
   fill(app, h('main', { class: 'grid min-h-screen place-items-center p-4' }, form), toastHost);
   user.focus();
   // Demo mode: skip the password with one click per role.

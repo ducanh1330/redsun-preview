@@ -23,8 +23,8 @@ async function main() {
   applyI18n();
   bindLangButtons();
   document.getElementById('year').textContent = new Date().getFullYear();
-  // Pages demo: staff go to the demo chooser (sample data, no login).
-  if (globalThis.REDSUN_PREVIEW) document.getElementById('staff-link')?.setAttribute('href', 'demo.html');
+  // Pages demo: no /quanly redirect there, so link the staff login page directly.
+  if (globalThis.REDSUN_PREVIEW) document.getElementById('staff-link')?.setAttribute('href', 'admin.html');
 
   // mobile menu
   const menuBtn = document.getElementById('menu-btn');
