@@ -4,6 +4,7 @@ import { t, getLang } from '../i18n.js';
 import { api, fmtDate, unitName, todayIso } from '../api.js';
 import { parseCccd } from '../../../shared/cccd.mjs';
 import { S, can, isOwner, btn, card, lbl, input, select, chip, flash, fail, errText, drawer, h, fill, vnd, PAY_METHODS } from './ui.js';
+import { openReport, reportList } from './conditions.js';
 
 const STATE_TONE = { free: 'good', occupied: 'info', arriving: 'warn', late_arrival: 'bad', due_out: 'warn', overdue: 'bad', held: 'muted', blocked: 'muted' };
 const CLEAN_TONE = { clean: 'good', dirty: 'bad', cleaning: 'warn' };
@@ -20,7 +21,8 @@ export async function renderBoard(main) {
 
   async function load() {
     let rooms;
-    try { rooms = await api('/api/admin/board'); } catch (err) { return fail(err); }
+    let cond = {};
+    try { [rooms, cond] = await Promise.all([api('/api/admin/board'), api('/api/admin/room-conditions').catch(() => ({}))]); } catch (err) { return fail(err); }
     const count = (f) => rooms.filter((r) => match(r, f)).length;
     fill(bar, ...FILTERS.map((f) => h('button', {
       type: 'button', 'aria-pressed': String(filter === f),
@@ -32,7 +34,7 @@ export async function renderBoard(main) {
     const floors = [...new Set(shown.map((r) => r.floor))].sort((a, b) => b - a);
     fill(grid, ...(floors.length ? floors.map((f) => h('section', {},
       h('h2', { class: 'mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-ink-muted' }, t('floor.label', { n: f })),
-      h('div', { class: 'grid gap-3 sm:grid-cols-2 xl:grid-cols-3' }, ...shown.filter((r) => r.floor === f).map((r) => roomCard(r, load)))))
+      h('div', { class: 'grid gap-3 sm:grid-cols-2 xl:grid-cols-3' }, ...shown.filter((r) => r.floor === f).map((r) => roomCard(r, load, cond[r.id])))))
       : [h('p', { class: 'py-10 text-center text-ink-muted' }, t('mg.board.none'))]));
   }
   load();
@@ -47,7 +49,7 @@ function match(r, f) {
   return r.state === f;
 }
 
-function roomCard(r, reload) {
+function roomCard(r, reload, cond = {}) {
   const b = r.booking;
   const setClean = async (clean) => {
     try { await api(`/api/admin/rooms/${r.id}/clean`, { method: 'POST', body: { clean } }); flash(t('mg.saved')); reload(); } catch (err) { fail(err); }
@@ -57,11 +59,16 @@ function roomCard(r, reload) {
     const primary = ['arriving', 'late_arrival'].includes(r.state) ? t('mg.stay.checkIn') : ['due_out', 'overdue'].includes(r.state) ? t('mg.stay.checkOut') : t('mg.stay.open');
     actions.push(btn(primary, () => openStay(b.ref, reload), ['arriving', 'late_arrival', 'due_out', 'overdue'].includes(r.state) ? 'primary' : 'ghost'));
   }
+  // Condition report: the step depends on what's happening in the room.
+  const stage = ['arriving', 'late_arrival'].includes(r.state) ? 'check_in'
+    : ['due_out', 'overdue'].includes(r.state) ? 'check_out' : r.clean !== 'clean' ? 'cleaning' : 'other';
+  const reportBtn = can('roomreport') ? btn(t('mg.rc.report'), () => openReport({ unitId: r.id, stage, bookingRef: r.booking?.ref ?? null, onDone: reload })) : null;
   if (can('housekeeping')) {
     if (r.clean !== 'clean') actions.push(btn(t('mg.clean.markClean'), () => setClean('clean'), b ? 'ghost' : 'dark'));
     if (r.clean === 'dirty') actions.push(btn(t('mg.clean.start'), () => setClean('cleaning')));
     if (r.clean === 'clean') actions.push(btn(t('mg.clean.markDirty'), () => setClean('dirty')));
   }
+  if (reportBtn) actions.push(reportBtn);
   return h('article', { class: `flex flex-col rounded-2xl border bg-paper-card p-4 elevated ${r.state === 'overdue' ? 'border-oxblood/40' : 'border-clay/70'}` },
     h('div', { class: 'flex items-start justify-between gap-3' },
       h('div', { class: 'min-w-0' },
@@ -75,6 +82,9 @@ function roomCard(r, reload) {
       : r.block_reason !== null && r.state === 'blocked' ? h('p', { class: 'mt-4 text-sm text-ink-muted' }, r.block_reason || t('state.blocked')) : null,
     r.next ? h('p', { class: 'mt-3 text-xs text-ink-muted' }, `${t('mg.board.next')}: ${r.next.name} · ${fmtDate(r.next.check_in)}`) : null,
     r.clean_note ? h('p', { class: 'mt-2 text-xs italic text-ink-2' }, `“${r.clean_note}”`) : null,
+    cond.open || cond.last ? h('p', { class: 'mt-2 flex flex-wrap items-center gap-2 text-xs text-ink-muted' },
+      cond.open ? chip(t('mg.rc.openCount', { n: cond.open }), 'bad') : null,
+      cond.last ? `${t('mg.rc.lastReport')}: ${t(`mg.rc.stage.${cond.last.stage}`)} · ${new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(cond.last.created_at))}` : null) : null,
     actions.length ? h('div', { class: 'mt-auto flex flex-wrap gap-2 pt-4' }, ...actions) : null);
 }
 
@@ -83,12 +93,14 @@ export function openStay(ref, onChange = () => {}) {
   let data = null;
   let mode = 'view'; // view | checkin | checkout | move | receipt
   let items = null;
+  let reports = [];
   const d = drawer(ref, () => (data ? view() : h('p', { class: 'text-ink-muted' }, '…')), { wide: true, onClose: onChange });
 
   async function load() {
     try {
       data = await api(`/api/admin/stays/${ref}`);
       if (!items) items = await api('/api/admin/items').catch(() => []);
+      reports = await api(`/api/admin/room-reports?ref=${encodeURIComponent(ref)}`).catch(() => []);
       d.setTitle(`${data.booking.name} · ${ref}`);
       d.refresh();
     } catch (err) { fail(err); d.close(); }
@@ -133,7 +145,8 @@ export function openStay(ref, onChange = () => {}) {
       mode === 'checkout' ? checkoutForm() : null,
       billCard(),
       b.stay_status !== 'checked_out' && !['cancelled', 'expired'].includes(b.status) ? chargeForm() : null,
-      guestsCard());
+      guestsCard(),
+      conditionCard());
   }
 
   function billCard() {
@@ -172,6 +185,19 @@ export function openStay(ref, onChange = () => {}) {
         h('div', { class: 'min-w-[12rem] flex-1' }, custom.name), custom.price,
         btn(t('mg.stay.addCustom'), () => custom.name.value.trim() && act(() => api(`/api/admin/stays/${ref}/charges`, { method: 'POST', body: { name: custom.name.value, price: Number(custom.price.value), qty: 1 } }), 'mg.saved'))) : null,
       !sellable.length ? h('p', { class: 'mt-2 text-xs text-ink-muted' }, t('mg.stay.noItems')) : null);
+  }
+
+  // Photos and problems for this stay: before check-in, after check-out, after cleaning.
+  function conditionCard() {
+    const b = data.booking;
+    const units = b.units;
+    const stage = b.stay_status === 'reserved' ? 'check_in' : b.stay_status === 'checked_in' ? 'check_out' : 'cleaning';
+    return card(
+      h('div', { class: 'mb-2 flex flex-wrap items-center justify-between gap-2' },
+        h('h3', { class: 'font-display text-lg font-semibold' }, t('mg.rc.section')),
+        h('div', { class: 'flex flex-wrap gap-2' }, ...units.map((u) => btn(units.length > 1 ? `${t('mg.rc.report')} · ${unitById(u).code}` : t('mg.rc.report'),
+          () => openReport({ unitId: u, stage, bookingRef: b.ref, onDone: load }))))),
+      reportList(reports, { onChange: load }));
   }
 
   function guestsCard() {

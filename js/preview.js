@@ -3,7 +3,7 @@
 // and the same rules the server uses (booking-core.mjs). Demo bookings live
 // only in this visitor's browser.
 import data from './preview-data.js';
-import { quoteFrom, nightsBetween, isIsoDate, diffDays, AppError } from './booking-core.mjs';
+import { quoteFrom, nightsBetween, nightPrices, isIsoDate, diffDays, AppError } from './booking-core.mjs';
 import { ApiError } from './api.js';
 
 const KEY = 'rs_preview_bookings';
@@ -50,12 +50,13 @@ function availability(from, to) {
   if (!isIsoDate(from) || !isIsoDate(to) || to <= from || diffDays(from, to) > 100) throw new AppError(400, 'invalid_dates');
   const grid = occupancy();
   const ids = data.pricing.units.map((u) => u.id);
+  const prices = nightPrices(data.pricing, from, to);
   return {
     from, to, units: ids,
     days: nightsBetween(from, to).map((date) => {
       const units = Object.fromEntries(ids.map((id) => [id, grid.get(id)?.get(date) ?? 'free']));
       const free = ids.filter((id) => units[id] === 'free').length;
-      return { date, units, free, villa: free === ids.length ? 'free' : free === 0 ? 'full' : 'partial' };
+      return { date, units, free, villa: free === ids.length ? 'free' : free === 0 ? 'full' : 'partial', prices: prices[date] };
     }),
   };
 }

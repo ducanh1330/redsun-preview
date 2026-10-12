@@ -179,3 +179,20 @@ export function quoteFrom(data, input, now = new Date()) {
     deposit,
   };
 }
+
+/**
+ * Nightly prices for the availability calendar: { [date]: { units: { [unitId]: price }, villa: price } }.
+ * data: { units, rates, specials, settings: { weekendNights } } (as for quoteFrom).
+ */
+export function nightPrices(data, from, to) {
+  const specials = data.specials.filter((s) => s.start_date < to && s.end_date >= from);
+  const out = {};
+  for (const night of nightsBetween(from, to)) {
+    const units = {};
+    for (const u of data.units) {
+      if (data.rates[u.id]) units[u.id] = nightPrice(data.rates[u.id], specials, u.id, night, data.settings.weekendNights).price;
+    }
+    out[night] = { units, villa: data.rates.VILLA ? nightPrice(data.rates.VILLA, specials, 'VILLA', night, data.settings.weekendNights).price : null };
+  }
+  return out;
+}

@@ -4,9 +4,12 @@ import { api, fmtDate } from '../api.js';
 import { S, can, btn, card, chip, fail, empty, h, fill, vnd, num } from './ui.js';
 import { barChart } from './chart.js';
 import { openStay } from './board.js';
+import { openIssuesList } from './conditions.js';
 
 const codes = (ids) => ids.map((id) => S.config.units.find((u) => u.id === id)?.code ?? id).join(', ');
-export const short = (v) => (v >= 1e6 ? `${(v / 1e6).toFixed(1)}tr` : `${num(Math.round(v / 1000))}k`);
+// Axis/tooltip money: 1.5tr (triệu = million ₫), 500k (nghìn); 0 stays 0.
+export const short = (v) => (v === 0 ? '0' : v >= 1e6 ? `${num(Number((v / 1e6).toFixed(1)))}tr` : `${num(Math.round(v / 1000))}k`);
+const span = (from, to) => `${fmtDate(from, { day: 'numeric', month: 'numeric' })} – ${fmtDate(to, { day: 'numeric', month: 'numeric' })}`;
 
 export async function renderDashboard(main, { go }) {
   fill(main, h('p', { class: 'py-10 text-center text-ink-muted' }, '…'));
@@ -52,7 +55,8 @@ export async function renderDashboard(main, { go }) {
   const occ = barChart(d.occupancy_ahead.map((x) => ({
     label: fmtDate(x.date), short: fmtDate(x.date, { day: 'numeric' }), value: x.occupied,
     tip: `${fmtDate(x.date)}: ${x.occupied}/${x.rooms} ${t('mg.dash.roomsWord')}`,
-  })), { format: (v) => num(Math.round(v)), max: d.rooms, height: 140, title: t('mg.dash.occAhead'), metric: 'occupancy' });
+  })), { format: (v) => num(Math.round(v)), max: d.rooms, height: 140, title: t('mg.dash.occAhead'), metric: 'occupancy',
+    yTitle: t('mg.axis.rooms', { n: d.rooms }), xTitle: t('mg.axis.nights', { span: span(d.occupancy_ahead[0].date, d.occupancy_ahead.at(-1).date) }) });
 
   const money = d.money ? card(
     h('div', { class: 'mb-3 flex flex-wrap items-baseline justify-between gap-2' },
@@ -62,8 +66,10 @@ export async function renderDashboard(main, { go }) {
         ` · ${t('mg.rep.occupancy')}: `, h('strong', { class: 'tabular text-ink' }, `${Math.round(d.money.last30_totals.occupancy * 100)}%`))),
     barChart(d.money.last30.map((x) => ({ label: fmtDate(x.date), short: fmtDate(x.date, { day: 'numeric' }), value: x.revenue, tip: `${fmtDate(x.date)}: ${vnd(x.revenue)}` })), {
       format: short, markEvery: 5, title: t('mg.dash.revenue30'),
+      yTitle: t('mg.axis.money'), xTitle: t('mg.axis.days', { span: span(d.money.last30[0].date, d.money.last30.at(-1).date) }),
     })) : null;
 
+  const issuesSlot = h('div');
   const title = (key, right = null) => h('div', { class: 'mb-2 flex items-center justify-between gap-2' }, h('h2', { class: 'font-display text-xl font-semibold' }, t(key)), right);
 
   fill(main, h('div', { class: 'grid gap-5' },
@@ -80,14 +86,27 @@ export async function renderDashboard(main, { go }) {
         d.low_stock.length ? h('ul', { class: 'divide-y divide-clay/60' }, ...d.low_stock.map((i) => h('li', { class: 'flex justify-between gap-3 py-2 text-sm' },
           h('span', {}, i.name), chip(t('mg.stock.left', { n: `${i.stock} ${i.unit}`.trim() }), i.stock <= 0 ? 'bad' : 'warn'))))
           : empty('mg.dash.stockOk')),
-      card(title('mg.dash.activity'), activityList(d.events)))));
+      card(title('mg.dash.activity'), activityList(d.events))),
+    issuesSlot));
+  // Problems from room reports (missing / broken / dirty), resolved here by the front desk.
+  if (can('roomreport')) openIssuesList(reload).then((list) => fill(issuesSlot, card(title('mg.rc.openIssues'), list)));
 }
 
-export function activityList(events) {
+export function activityList(events, { initial = 5 } = {}) {
   if (!events?.length) return empty('mg.dash.nothing');
   const when = new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh' });
-  return h('ul', { class: 'divide-y divide-clay/60' }, ...events.map((e) => h('li', { class: 'py-2 text-sm' },
+  const item = (e) => h('li', { class: 'py-2 text-sm' },
     h('p', {}, h('span', { class: 'font-semibold' }, t(`mg.ev.${e.type}`)), e.booking_ref ? h('span', { class: 'ml-2 text-xs tabular text-ink-muted' }, e.booking_ref) : null),
     h('p', { class: 'text-ink-muted' }, e.message),
-    h('p', { class: 'text-xs text-ink-muted' }, `${when.format(new Date(e.created_at))}${e.staff_name ? ` · ${e.staff_name}` : ''}`))));
+    h('p', { class: 'text-xs text-ink-muted' }, `${when.format(new Date(e.created_at))}${e.staff_name ? ` · ${e.staff_name}` : ''}`));
+  const list = h('ul', { class: 'divide-y divide-clay/60' }, ...events.slice(0, initial).map(item));
+  if (events.length <= initial) return list;
+  let open = false;
+  const toggle = btn(t('mg.more', { n: events.length - initial }), () => {
+    open = !open;
+    fill(list, ...(open ? events : events.slice(0, initial)).map(item));
+    toggle.textContent = open ? t('mg.less') : t('mg.more', { n: events.length - initial });
+    toggle.setAttribute('aria-expanded', String(open));
+  }, 'ghost', { 'aria-expanded': 'false', class: 'mt-2' });
+  return h('div', {}, list, toggle);
 }

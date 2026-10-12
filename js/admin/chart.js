@@ -7,13 +7,26 @@ import { h } from './ui.js';
 //   money → terracotta, occupancy (rooms, nights) → green, items sold → gold.
 export const METRIC = { money: '#A3401E', occupancy: '#00806A', items: '#B98318' };
 
+/** Round numbers for the y-axis: 0 … niceMax in 3–5 even steps. */
+function niceTicks(maxValue, fixedMax) {
+  if (fixedMax && Number.isInteger(fixedMax) && fixedMax <= 6) return Array.from({ length: fixedMax + 1 }, (_, i) => i);
+  const raw = Math.max(1, maxValue) / 4;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((x) => x >= raw);
+  const top = Math.ceil(Math.max(1, maxValue) / step) * step;
+  return Array.from({ length: Math.round(top / step) + 1 }, (_, i) => i * step);
+}
+
 /**
  * points: [{ label, short, value, tip }]
- * opts: { format(v) → string, height, max, markEvery }
+ * opts: { format(v) → tick/tooltip text, yTitle, xTitle, height, max, markEvery, metric }
+ * The y-axis is on the left with round numbers from 0; yTitle names the measure and unit,
+ * xTitle names what each bar is (e.g. one bar per day).
  */
-export function barChart(points, { format = String, height = 180, max, markEvery = 1, title = '', metric = 'money' } = {}) {
-  const top = max ?? Math.max(1, ...points.map((p) => p.value));
-  const tip = h('div', { class: 'pointer-events-none absolute z-10 hidden -translate-x-1/2 rounded-lg bg-ink px-2.5 py-1.5 text-xs font-semibold text-paper shadow-lg', role: 'status' });
+export function barChart(points, { format = String, height = 180, max, markEvery = 1, title = '', metric = 'money', yTitle = '', xTitle = '' } = {}) {
+  const ticks = niceTicks(Math.max(0, ...points.map((p) => p.value)), max);
+  const top = ticks[ticks.length - 1] || 1;
+  const tip = h('div', { class: 'pointer-events-none absolute z-10 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-ink px-2.5 py-1.5 text-xs font-semibold text-paper shadow-lg', role: 'status' });
   const show = (el, p) => {
     tip.textContent = p.tip ?? `${p.label}: ${format(p.value)}`;
     tip.classList.remove('hidden');
@@ -25,7 +38,7 @@ export function barChart(points, { format = String, height = 180, max, markEvery
   const hide = () => tip.classList.add('hidden');
 
   const bars = points.map((p, i) => {
-    const pct = top ? Math.max(0, Math.min(100, (p.value / top) * 100)) : 0;
+    const pct = Math.max(0, Math.min(100, (p.value / top) * 100));
     const col = h('button', {
       type: 'button',
       class: 'group relative flex h-full min-w-0 flex-1 cursor-default items-end focus-visible:outline-none',
@@ -38,19 +51,24 @@ export function barChart(points, { format = String, height = 180, max, markEvery
     return { col, label: i % markEvery === 0 ? p.short ?? p.label : '' };
   });
 
-  const grid = [1, 0.5].map((f) => h('div', { class: 'absolute inset-x-0 border-t border-dashed border-clay/80', style: `bottom: ${f * 100}%` },
-    h('span', { class: 'absolute -top-2.5 right-0 bg-paper-card pl-1 text-[10px] tabular text-ink-muted' }, format(top * f))));
+  // Gridlines with their value on the left (the y-axis); the 0 line is the baseline.
+  const grid = ticks.map((v) => h('div', { class: `absolute inset-x-0 border-t ${v === 0 ? 'border-ink/30' : 'border-dashed border-clay/80'}`, style: `bottom: ${(v / top) * 100}%` },
+    h('span', { class: 'absolute right-full top-0 mr-2 -translate-y-1/2 whitespace-nowrap text-[10px] tabular text-ink-muted' }, format(v))));
   const plot = h('div', { class: 'relative', style: `height: ${height}px` },
     ...grid,
-    h('div', { class: 'absolute inset-x-0 bottom-0 border-t border-ink/30' }),
-    h('div', { class: 'relative flex h-full items-end gap-[2px] pr-14', 'aria-hidden': 'false' }, ...bars.map((b) => b.col)),
+    h('div', { class: 'relative flex h-full items-end gap-[2px]' }, ...bars.map((b) => b.col)),
     tip);
   return h('figure', { class: 'w-full' },
     title ? h('figcaption', { class: 'sr-only' }, title) : null,
-    plot,
-    h('div', { class: 'mt-1.5 flex gap-[2px] pr-14 text-[10px] text-ink-muted', 'aria-hidden': 'true' },
-      ...bars.map((b) => h('span', { class: 'min-w-0 flex-1 truncate text-center' }, b.label))),
-    h('table', { class: 'sr-only' }, h('tbody', {}, ...points.map((p) => h('tr', {}, h('th', {}, p.label), h('td', {}, format(p.value)))))));
+    yTitle ? h('p', { class: 'mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-muted' }, `↑ ${yTitle}`) : null,
+    h('div', { class: 'pl-12' },
+      plot,
+      h('div', { class: 'mt-1.5 flex gap-[2px] text-[10px] text-ink-muted', 'aria-hidden': 'true' },
+        ...bars.map((b) => h('span', { class: 'min-w-0 flex-1 truncate text-center' }, b.label))),
+      xTitle ? h('p', { class: 'mt-1 text-center text-[11px] font-semibold uppercase tracking-wider text-ink-muted' }, `${xTitle} →`) : null),
+    h('table', { class: 'sr-only' },
+      yTitle || xTitle ? h('thead', {}, h('tr', {}, h('th', {}, xTitle), h('th', {}, yTitle))) : null,
+      h('tbody', {}, ...points.map((p) => h('tr', {}, h('th', {}, p.label), h('td', {}, format(p.value)))))));
 }
 
 /** Horizontal bars for a short ranked list (payment methods, rooms, items). */
