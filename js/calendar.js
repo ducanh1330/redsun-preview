@@ -54,6 +54,18 @@ export function initCalendar(root, config, booking) {
     const p = freeUnits(day).map((u) => unitPrice(day, u.id)).filter((x) => x != null);
     return p.length ? Math.min(...p) : null;
   };
+  // A stay works only if one room is free on every night of it (guests don't switch rooms mid-stay).
+  const stayable = (from, to) => units.some((u) => {
+    for (let d = from; d < to; d = addDays(d, 1)) if (!isFree(known.get(d), u.id)) return false;
+    return true;
+  });
+  // Latest check-out reachable from a check-in (nights not loaded yet count as unknown → stop).
+  const MAX_NIGHTS = 30;
+  const lastOut = (from) => {
+    let out = from;
+    while (diffDays(from, out) < MAX_NIGHTS && known.has(out) && stayable(from, addDays(out, 1))) out = addDays(out, 1);
+    return out;
+  };
   // free = every room, few = some, none = nothing left
   const level = (day) => { const n = freeUnits(day).length; return n === units.length ? 'free' : n ? 'few' : 'none'; };
 
@@ -164,6 +176,7 @@ export function initCalendar(root, config, booking) {
     const weekdays = Array.from({ length: 7 }, (_, i) => fmtDate(addDays('2026-01-05', i), { weekday: 'short' }));
     const total = units.length;
 
+    const maxOut = state.pendingIn ? lastOut(state.pendingIn) : null;
     const cells = [];
     for (let i = 0; i < lead; i += 1) cells.push(h('div', { 'aria-hidden': 'true' }));
     for (let d = from; d < to; d = addDays(d, 1)) {
@@ -172,8 +185,10 @@ export function initCalendar(root, config, booking) {
       const lv = day ? level(day) : null;
       const full = lv === 'none';
       // A fully booked night can still be someone's check-out day.
-      const canPickOut = state.pendingIn && d > state.pendingIn;
-      const disabled = past || (full && !canPickOut);
+      // While picking check-out: only days a room stays free until (a full night can still be the check-out day).
+      const afterIn = state.pendingIn && d > state.pendingIn;
+      const unreachable = afterIn && d > maxOut;
+      const disabled = past || unreachable || (full && !afterIn);
       const selected = inSelected(d);
       const pending = state.pendingIn === d;
       const isEdge = pending || (!picking() && d === booking.range.checkIn);
@@ -189,7 +204,7 @@ export function initCalendar(root, config, booking) {
       const tipText = day && !past ? `${freeText(day)}${price != null ? ` · ${t('cal.from', { price: shortPrice(price) })}` : ''}` : '';
       cells.push(h('button', {
         type: 'button',
-        class: `btn relative flex min-h-[3.75rem] flex-col items-start justify-between rounded-xl border p-1.5 text-left sm:min-h-[5.25rem] sm:p-2.5 ${tone} ${disabled ? 'cursor-not-allowed' : ''}`,
+        class: `btn relative flex min-h-[3.75rem] flex-col items-start justify-between rounded-xl border p-1.5 text-left sm:min-h-[5.25rem] sm:p-2.5 ${tone} ${disabled ? 'cursor-not-allowed' : ''} ${unreachable ? 'opacity-35' : ''}`,
         disabled: disabled || null,
         'aria-label': past ? `${longDate} — ${t('state.past')}` : `${longDate} — ${tipText}`,
         'aria-pressed': String(selected || pending),
@@ -354,7 +369,9 @@ export function initCalendar(root, config, booking) {
       const room = state.weekPick ? units.find((u) => u.id === state.weekPick.unit)?.code : null;
       const one = state.weekPick;
       fill(hint, h('div', { class: 'flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-sun-100 px-4 py-3' },
-        h('p', { class: 'min-w-0 text-sm font-medium text-ink' }, room ? t('cal.pickedWeek', { room, date: fmtDate(from) }) : t('avail.pickedIn', { date: fmtDate(from) })),
+        h('p', { class: 'min-w-0 text-sm font-medium text-ink' }, room ? t('cal.pickedWeek', { room, date: fmtDate(from) }) : t('avail.pickedIn', { date: fmtDate(from) }),
+          // Month: say how far the stay can go before some night is fully booked.
+          state.pendingIn ? h('span', { class: 'mt-1 block font-normal text-ink-2' }, t('cal.lastOut', { date: fmtDate(lastOut(state.pendingIn)) })) : null),
         h('div', { class: 'flex flex-wrap gap-2' },
           one ? ghostBtn(t('cal.oneNight'), () => onWeekCellRange(units.find((x) => x.id === one.unit), one.from, one.from)) : null,
           ghostBtn(t('cal.cancel'), cancelPick))));
