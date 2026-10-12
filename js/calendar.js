@@ -95,6 +95,7 @@ export function initCalendar(root, config, booking) {
             if (state.view === v) return;
             state.view = v;
             state.weekPick = null;
+            state.pendingIn = null;
             // Land on the chosen check-in if there is one, so the selection stays in view.
             const { checkIn } = booking.range;
             state.anchor = checkIn && checkIn >= today ? checkIn : state.anchor < today ? today : state.anchor;
@@ -114,10 +115,14 @@ export function initCalendar(root, config, booking) {
     instruction.textContent = t(`cal.how.${state.view}`);
   }
 
+  const picking = () => Boolean(state.pendingIn || state.weekPick);
   const inSelected = (d) => {
+    if (picking()) return false;
     const { checkIn, checkOut } = booking.range;
     return checkIn && checkOut && d >= checkIn && d < checkOut;
   };
+  const cancelPick = () => { state.pendingIn = null; state.weekPick = null; renderBody(); renderHint(); };
+  const clearAll = () => { state.pendingIn = null; state.weekPick = null; state.selUnit = null; booking.clear(); };
 
   const freeText = (day) => {
     const free = freeUnits(day);
@@ -140,7 +145,8 @@ export function initCalendar(root, config, booking) {
 
   // ── Month: whole house at a glance, lowest price per night ─────────────────
   function onDayClick(date) {
-    if (!state.pendingIn || date <= state.pendingIn) {
+    if (state.pendingIn === date) return cancelPick();
+    if (!state.pendingIn || date < state.pendingIn) {
       state.pendingIn = date;
       state.selUnit = null;
       renderBody();
@@ -170,7 +176,7 @@ export function initCalendar(root, config, booking) {
       const disabled = past || (full && !canPickOut);
       const selected = inSelected(d);
       const pending = state.pendingIn === d;
-      const isEdge = d === booking.range.checkIn || pending;
+      const isEdge = pending || (!picking() && d === booking.range.checkIn);
       const price = day && !past ? lowest(day) : null;
       const label = !day || past ? '' : lv === 'free' ? t('cal.free') : full ? t('cal.none') : t('villa.left', { n: freeUnits(day).length, total });
       const tone = isEdge ? 'border-terra bg-terra text-paper'
@@ -205,18 +211,24 @@ export function initCalendar(root, config, booking) {
   }
 
   // ── Week: rooms × 7 nights; tap first and last night on a row ──────────────
+  function onWeekCellRange(u, from, last) {
+    // Every night between must be free for this room; otherwise start over at the last tap.
+    for (let d = from; d <= last; d = addDays(d, 1)) {
+      if (!isFree(known.get(d), u.id)) { state.weekPick = { unit: u.id, from: last }; renderBody(); renderHint(); return; }
+    }
+    state.weekPick = null;
+    state.pendingIn = null;
+    state.selUnit = u.id;
+    booking.pickUnit(u.id);
+    booking.setRange(from, addDays(last, 1));
+  }
+
   function onWeekCell(u, date) {
     const p = state.weekPick;
-    if (p && p.unit === u.id && date >= p.from) {
+    if (p && p.unit === u.id && p.from === date) return cancelPick();
+    if (p && p.unit === u.id && date > p.from) {
       // Every night between must be free for this room; otherwise start over here.
-      for (let d = p.from; d <= date; d = addDays(d, 1)) {
-        if (!isFree(known.get(d), u.id)) { state.weekPick = { unit: u.id, from: date }; renderBody(); renderHint(); return; }
-      }
-      state.weekPick = null;
-      state.pendingIn = null;
-      state.selUnit = u.id;
-      booking.pickUnit(u.id);
-      booking.setRange(p.from, addDays(date, 1));
+      onWeekCellRange(u, p.from, date);
       return;
     }
     state.weekPick = { unit: u.id, from: date };
@@ -333,13 +345,19 @@ export function initCalendar(root, config, booking) {
     return sum;
   }
 
+  const ghostBtn = (label, onclick) => h('button', { type: 'button', class: 'btn min-h-[2.75rem] rounded-full border border-clay bg-paper-card px-4 text-sm font-semibold hover:border-clay-2 hover:bg-paper', onclick }, label);
+
   function renderHint() {
     const { checkIn, checkOut } = booking.range;
     if (state.pendingIn || state.weekPick) {
       const from = state.pendingIn ?? state.weekPick.from;
       const room = state.weekPick ? units.find((u) => u.id === state.weekPick.unit)?.code : null;
-      fill(hint, h('p', { class: 'rounded-2xl bg-sun-100 px-4 py-3 text-sm font-medium text-ink' },
-        room ? t('cal.pickedWeek', { room, date: fmtDate(from) }) : t('avail.pickedIn', { date: fmtDate(from) })));
+      const one = state.weekPick;
+      fill(hint, h('div', { class: 'flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-sun-100 px-4 py-3' },
+        h('p', { class: 'min-w-0 text-sm font-medium text-ink' }, room ? t('cal.pickedWeek', { room, date: fmtDate(from) }) : t('avail.pickedIn', { date: fmtDate(from) })),
+        h('div', { class: 'flex flex-wrap gap-2' },
+          one ? ghostBtn(t('cal.oneNight'), () => onWeekCellRange(units.find((x) => x.id === one.unit), one.from, one.from)) : null,
+          ghostBtn(t('cal.cancel'), cancelPick))));
     } else if (checkIn && checkOut) {
       const n = diffDays(checkIn, checkOut);
       const total = stayPrice(checkIn, checkOut);
@@ -348,7 +366,9 @@ export function initCalendar(root, config, booking) {
         h('p', { class: 'min-w-0 text-sm font-semibold tabular' },
           `${room ? `${room} · ` : ''}${fmtDate(checkIn, { day: 'numeric', month: 'numeric' })} → ${fmtDate(checkOut, { day: 'numeric', month: 'numeric' })} · ${t('sum.nights', { n })}`,
           total != null ? h('span', { class: 'text-ink-muted' }, ` · ${room ? shortPrice(total) : t('cal.from', { price: shortPrice(total) })}`) : null),
-        h('a', { href: '#booking', class: 'btn inline-flex min-h-[2.75rem] items-center rounded-full bg-terra px-5 text-sm font-semibold text-paper hover:bg-terra-700', onclick: (e) => { e.preventDefault(); booking.goToForm(); } }, t('book.continue'))));
+        h('div', { class: 'flex flex-wrap items-center gap-2' },
+          ghostBtn(t('cal.clear'), clearAll),
+          h('a', { href: '#booking', class: 'btn inline-flex min-h-[2.75rem] items-center rounded-full bg-terra px-5 text-sm font-semibold text-paper hover:bg-terra-700', onclick: (e) => { e.preventDefault(); booking.goToForm(); } }, t('book.continue')))));
     } else fill(hint);
   }
 
@@ -376,6 +396,12 @@ export function initCalendar(root, config, booking) {
   }
 
   document.addEventListener('booking:range', () => { state.pendingIn = null; state.weekPick = null; renderBody(); renderHint(); });
+  document.addEventListener('booking:selection', (e) => {
+    const { mode, units: ids } = e.detail;
+    if (state.selUnit && (mode !== 'room' || !ids.includes(state.selUnit))) state.selUnit = ids.length === 1 && mode === 'room' ? ids[0] : null;
+    renderBody();
+    renderHint();
+  });
   document.addEventListener('availability:refresh', () => { known.clear(); load(); });
   document.addEventListener('langchange', () => { renderToolbar(); renderBody(); renderHint(); });
   load();

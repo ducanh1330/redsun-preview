@@ -158,6 +158,7 @@ export function initBooking(root, config) {
           if (input.checked) state.units.add(u.id); else state.units.delete(u.id);
           renderUnits();
           scheduleQuote();
+          emitSelection();
         });
         const cap = u.kind === 'dorm' ? t('unit.capDorm', { adults: u.adults }) : t('unit.cap', { adults: u.adults, children: u.children });
         return h('label', { class: `btn flex items-center gap-3 rounded-2xl border p-3.5 sm:p-4 ${checked ? 'border-terra bg-terra-100/50' : 'border-clay bg-paper hover:border-clay-2'} ${free === false ? '!cursor-not-allowed opacity-60' : ''}` },
@@ -397,6 +398,8 @@ export function initBooking(root, config) {
     renderSummary();
   }
 
+  const emitSelection = () => document.dispatchEvent(new CustomEvent('booking:selection', { detail: { mode: state.mode, units: [...state.units] } }));
+
   const api_ = {
     setRange(checkIn, checkOut) {
       state.checkIn = checkIn || '';
@@ -412,6 +415,7 @@ export function initBooking(root, config) {
       syncInputs();
       renderUnits();
       scheduleQuote();
+      emitSelection();
     },
     setGuests(adults, children) {
       state.adults = adults;
@@ -425,12 +429,23 @@ export function initBooking(root, config) {
       syncInputs();
       renderUnits();
       scheduleQuote();
+      emitSelection();
     },
     goToForm() {
       if (state.step !== 1) goStep(1);
       root.scrollIntoView({ behavior: 'smooth', block: 'start' });
     },
+    /** Forget the dates and rooms picked so far (the calendar's "Clear"). */
+    clear() {
+      state.units.clear();
+      state.mode = 'room';
+      api_.setRange('', '');
+      syncInputs();
+      renderUnits();
+      emitSelection();
+    },
     get range() { return { checkIn: state.checkIn, checkOut: state.checkOut }; },
+    get selection() { return { mode: state.mode, units: [...state.units] }; },
   };
 
   document.addEventListener('langchange', renderAll);
