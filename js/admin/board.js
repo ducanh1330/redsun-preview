@@ -2,7 +2,7 @@
 // check-out and receipt. Housekeeping staff get the cleaning controls only.
 import { t, getLang } from '../i18n.js';
 import { api, fmtDate, unitName, todayIso } from '../api.js';
-import { parseCccd } from '../../../shared/cccd.mjs';
+import { parseCccd } from '../../shared/cccd.mjs';
 import { S, can, isOwner, btn, card, lbl, input, select, chip, flash, fail, errText, drawer, h, fill, vnd, PAY_METHODS } from './ui.js';
 import { openReport, reportList } from './conditions.js';
 

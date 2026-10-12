@@ -39,7 +39,7 @@ export async function renderReports(main) {
     card(h('div', { class: 'flex flex-wrap items-end gap-3' },
       h('div', { class: 'seg' }, ...Object.keys(PRESETS).map((k) => h('button', { type: 'button', 'aria-pressed': String(preset === k), onclick: () => { preset = k; range = PRESETS[k](); renderReports(main); } }, t(`mg.rep.p.${k}`)))),
       lbl('mg.rep.from', from), lbl('mg.rep.to', to),
-      h('a', { href: `/api/admin/reports?from=${range[0]}&to=${range[1]}&format=csv`, class: 'btn ml-auto inline-flex min-h-[2.5rem] items-center rounded-full border border-clay bg-paper-card px-4 text-sm font-semibold hover:border-clay-2 hover:bg-paper', download: '' }, t('mg.rep.csv')))),
+      h('a', { href: `api/admin/reports?from=${range[0]}&to=${range[1]}&format=csv`, class: 'btn ml-auto inline-flex min-h-[2.5rem] items-center rounded-full border border-clay bg-paper-card px-4 text-sm font-semibold hover:border-clay-2 hover:bg-paper', download: '' }, t('mg.rep.csv')))),
     body));
 
   let r;

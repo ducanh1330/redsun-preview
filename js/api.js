@@ -10,11 +10,31 @@ export class ApiError extends Error {
   }
 }
 
+// GitHub Pages preview: the server runs in a service worker (sw.js) with sample
+// data kept in this browser. Resolves false where service workers can't run.
+let demoServer = null;
+export function startDemoServer() {
+  demoServer ??= (async () => {
+    if (!('serviceWorker' in navigator)) return false;
+    try {
+      await navigator.serviceWorker.register('sw.js');
+      if (!navigator.serviceWorker.controller) {
+        await new Promise((resolve) => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true }));
+      }
+      return true;
+    } catch { return false; }
+  })();
+  return demoServer;
+}
+
 export async function api(path, { method = 'GET', body } = {}) {
-  // GitHub Pages preview build: no server, the page answers its own calls.
   if (globalThis.REDSUN_PREVIEW) {
-    const { previewApi } = await import('./preview.js');
-    return previewApi(path, { method, body });
+    // No service worker: fall back to the guest-only preview answered in the page.
+    if (!(await startDemoServer())) {
+      const { previewApi } = await import('./preview.js');
+      return previewApi(path, { method, body });
+    }
+    path = path.replace(/^\//, ''); // relative: Pages serves the site under /<repo>/
   }
   let res;
   try {

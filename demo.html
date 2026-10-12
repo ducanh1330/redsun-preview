@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="vi">
 <head>
+<script>window.REDSUN_PREVIEW = true;</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RedSun — Demo</title>
@@ -13,6 +14,7 @@
 <link rel="stylesheet" href="css/tokens.css">
 </head>
 <body class="grain min-h-screen bg-ink font-sans text-paper antialiased">
+
 <span aria-hidden="true" class="pointer-events-none fixed inset-0" style="background-image: radial-gradient(50rem 30rem at 85% 0%, rgba(217,150,43,.28), transparent 60%), radial-gradient(50rem 32rem at 0% 100%, rgba(163,64,30,.45), transparent 60%)"></span>
 <main class="relative z-10 mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-4 py-16 sm:px-8">
   <p class="text-xs font-semibold uppercase tracking-[0.16em] text-sun">RedSun Villa · Demo</p>
@@ -42,9 +44,26 @@
       </div>
     </a>
   </div>
+  <p id="reset" hidden class="mt-8 flex flex-wrap items-center gap-3 text-sm text-paper/70">
+    Dữ liệu mẫu lưu trong trình duyệt này. <span class="text-paper/50">Sample data is kept in this browser only.</span>
+    <button type="button" class="btn rounded-full border border-paper/25 px-4 py-2 font-semibold text-paper hover:bg-paper/10 active:bg-paper/20">Đặt lại dữ liệu mẫu · Reset</button>
+  </p>
 </main>
-<script>
-  fetch('/api/config').then((r) => r.json()).then((c) => { const p = c.assets?.hero?.[0]; if (p) document.getElementById('hero').src = p.src; }).catch(() => {});
+<script type="module">
+  import { api } from './js/api.js';
+  api('/api/config').then((c) => { const p = c.assets?.hero?.[0]; if (p) document.getElementById('hero').src = p.src; }).catch(() => {});
+  // Pages demo: data lives in this browser; let visitors start over.
+  if (globalThis.REDSUN_PREVIEW) {
+    const reset = document.getElementById('reset');
+    reset.hidden = false;
+    reset.querySelector('button').addEventListener('click', async (e) => {
+      const b = e.currentTarget;
+      b.disabled = true;
+      await fetch('api/__demo/reset', { method: 'POST' }).catch(() => {});
+      reset.querySelector('span').textContent = 'Đã đặt lại · Reset done';
+      b.disabled = false;
+    });
+  }
 </script>
 </body>
 </html>

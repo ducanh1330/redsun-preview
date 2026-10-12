@@ -11,10 +11,11 @@ const STAGE_TONE = { check_in: 'info', check_out: 'warn', cleaning: 'good', othe
 const KIND_TONE = { missing: 'bad', broken: 'bad', dirty: 'warn', other: 'muted' };
 const when = new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh' });
 const codeOf = (unitId) => S.config.units.find((u) => u.id === unitId)?.code ?? unitId;
-export const photoUrl = (file) => `/api/admin/photos/${encodeURIComponent(file)}`;
+// Relative: works at the site root and under the Pages demo's /<repo>/ path.
+export const photoUrl = (file) => `api/admin/photos/${encodeURIComponent(file)}`;
 
 async function uploadPhoto(file) {
-  const res = await fetch('/api/admin/photos', { method: 'POST', headers: { 'Content-Type': file.type || 'image/jpeg' }, body: file, credentials: 'same-origin' });
+  const res = await fetch('api/admin/photos', { method: 'POST', headers: { 'Content-Type': file.type || 'image/jpeg' }, body: file, credentials: 'same-origin' });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw Object.assign(new Error(data.error ?? 'upload_failed'), { code: data.error ?? 'upload_failed', status: res.status });
   return data.file;

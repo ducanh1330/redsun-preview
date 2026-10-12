@@ -23,7 +23,8 @@ async function main() {
   applyI18n();
   bindLangButtons();
   document.getElementById('year').textContent = new Date().getFullYear();
-  if (globalThis.REDSUN_PREVIEW) document.getElementById('staff-link')?.remove();
+  // Pages demo: staff go to the demo chooser (sample data, no login).
+  if (globalThis.REDSUN_PREVIEW) document.getElementById('staff-link')?.setAttribute('href', 'demo.html');
 
   // mobile menu
   const menuBtn = document.getElementById('menu-btn');
