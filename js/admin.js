@@ -1,5 +1,5 @@
 import { t, applyI18n, bindLangButtons, getLang, addStrings } from './i18n.js';
-import { api, money, fmtDate, h, unitName, todayIso, addDays, fill } from './api.js';
+import { api, apiFetch, money, fmtDate, h, unitName, todayIso, addDays, fill } from './api.js';
 import { VI, EN } from './admin/strings.js';
 import { S, can, btn, card, heading, lbl, input, flash, fail as failToast, toastHost, setUnauthorizedHandler, drawer, errText } from './admin/ui.js';
 import { renderDashboard, activityList } from './admin/dashboard.js';
@@ -67,7 +67,7 @@ function renderLogin(message) {
       h('p', {}, t('mg.demo.local')),
       btn(t('mg.demo.reset'), async (e) => {
         e.currentTarget.disabled = true;
-        await fetch('api/__demo/reset', { method: 'POST' }).catch(() => {});
+        await apiFetch('api/__demo/reset', { method: 'POST' }).catch(() => {});
         flash(t('mg.demo.resetDone'));
         e.currentTarget.disabled = false;
       }, 'ghost', { class: 'mt-2' })));

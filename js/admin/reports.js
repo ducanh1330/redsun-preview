@@ -1,6 +1,6 @@
 // Báo cáo: revenue, money collected, occupancy, ADR, payment methods, rooms, top items. CSV export.
 import { t } from '../i18n.js';
-import { api, fmtDate, todayIso, addDays } from '../api.js';
+import { api, apiFileUrl, demoInPage, fmtDate, todayIso, addDays } from '../api.js';
 import { S, btn, card, lbl, input, fail, empty, h, fill, vnd, num } from './ui.js';
 import { barChart, rankBars } from './chart.js';
 import { short } from './dashboard.js';
@@ -39,7 +39,15 @@ export async function renderReports(main) {
     card(h('div', { class: 'flex flex-wrap items-end gap-3' },
       h('div', { class: 'seg' }, ...Object.keys(PRESETS).map((k) => h('button', { type: 'button', 'aria-pressed': String(preset === k), onclick: () => { preset = k; range = PRESETS[k](); renderReports(main); } }, t(`mg.rep.p.${k}`)))),
       lbl('mg.rep.from', from), lbl('mg.rep.to', to),
-      h('a', { href: `api/admin/reports?from=${range[0]}&to=${range[1]}&format=csv`, class: 'btn ml-auto inline-flex min-h-[2.5rem] items-center rounded-full border border-clay bg-paper-card px-4 text-sm font-semibold hover:border-clay-2 hover:bg-paper', download: '' }, t('mg.rep.csv')))),
+      h('a', {
+        href: `api/admin/reports?from=${range[0]}&to=${range[1]}&format=csv`,
+        // In-page Pages demo: no server behind the link, so download the generated file.
+        onclick: (e) => {
+          if (!demoInPage()) return;
+          e.preventDefault();
+          apiFileUrl(e.currentTarget.getAttribute('href')).then((u) => Object.assign(document.createElement('a'), { href: u, download: `redsun-${range[0]}-${range[1]}.csv` }).click());
+        },
+        class: 'btn ml-auto inline-flex min-h-[2.5rem] items-center rounded-full border border-clay bg-paper-card px-4 text-sm font-semibold hover:border-clay-2 hover:bg-paper', download: '' }, t('mg.rep.csv')))),
     body));
 
   let r;

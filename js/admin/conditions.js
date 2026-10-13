@@ -2,7 +2,7 @@
 // cleaning; list problems (missing / broken / dirty). Front desk resolves each
 // problem by writing it off from stock and/or charging the guest.
 import { t } from '../i18n.js';
-import { api } from '../api.js';
+import { api, apiFetch, apiFileUrl } from '../api.js';
 import { S, can, btn, chip, lbl, input, select, flash, fail, errText, drawer, empty, h, fill, vnd } from './ui.js';
 
 const STAGES = ['check_in', 'check_out', 'cleaning', 'other'];
@@ -14,8 +14,16 @@ const codeOf = (unitId) => S.config.units.find((u) => u.id === unitId)?.code ?? 
 // Relative: works at the site root and under the Pages demo's /<repo>/ path.
 export const photoUrl = (file) => `api/admin/photos/${encodeURIComponent(file)}`;
 
+// Thumbnail linking to the full photo (blob URLs on the in-page Pages demo).
+function photoThumb(file, i) {
+  const img = h('img', { alt: t('mg.rc.photoN', { n: i + 1 }), loading: 'lazy', class: 'h-full w-full object-cover' });
+  const a = h('a', { target: '_blank', rel: 'noopener', class: 'btn block aspect-square overflow-hidden rounded-lg bg-paper-2' }, img);
+  apiFileUrl(photoUrl(file)).then((u) => { img.src = u; a.href = u; }).catch(() => {});
+  return a;
+}
+
 async function uploadPhoto(file) {
-  const res = await fetch('api/admin/photos', { method: 'POST', headers: { 'Content-Type': file.type || 'image/jpeg' }, body: file, credentials: 'same-origin' });
+  const res = await apiFetch('api/admin/photos', { method: 'POST', headers: { 'Content-Type': file.type || 'image/jpeg' }, body: file });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw Object.assign(new Error(data.error ?? 'upload_failed'), { code: data.error ?? 'upload_failed', status: res.status });
   return data.file;
@@ -209,9 +217,7 @@ export function reportList(reports, { onChange = () => {} } = {}) {
       chip(t(`mg.rc.stage.${r.stage}`), STAGE_TONE[r.stage]),
       h('span', { class: 'text-ink-muted' }, `${when.format(new Date(r.created_at))}${r.staff_name ? ` · ${r.staff_name}` : ''}`),
       r.booking_ref ? h('span', { class: 'text-xs tabular text-ink-muted' }, `${r.booking_ref}${r.guest_name ? ` · ${r.guest_name}` : ''}`) : null),
-    r.photos.length ? h('div', { class: 'mt-2 grid grid-cols-4 gap-1.5 sm:grid-cols-6' }, ...r.photos.map((p, i) => h('a', {
-      href: photoUrl(p.file), target: '_blank', rel: 'noopener', class: 'btn block aspect-square overflow-hidden rounded-lg bg-paper-2',
-    }, h('img', { src: photoUrl(p.file), alt: t('mg.rc.photoN', { n: i + 1 }), loading: 'lazy', class: 'h-full w-full object-cover' })))) : null,
+    r.photos.length ? h('div', { class: 'mt-2 grid grid-cols-4 gap-1.5 sm:grid-cols-6' }, ...r.photos.map((p, i) => photoThumb(p.file, i))) : null,
     r.note ? h('p', { class: 'mt-2 text-sm' }, r.note) : null,
     r.used?.length ? h('p', { class: 'mt-2 text-sm' }, h('span', { class: 'font-semibold' }, `${t('mg.rc.usedShort')}: `),
       r.used.filter((u) => !u.voided).map((u) => `${u.name} ×${u.qty} (${vnd(u.amount)})`).join(', ') || '—') : null,

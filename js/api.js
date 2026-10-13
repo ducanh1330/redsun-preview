@@ -11,38 +11,57 @@ export class ApiError extends Error {
 }
 
 // GitHub Pages preview: the server runs in a service worker (sw.js) with sample
-// data kept in this browser. Resolves false where service workers can't run.
+// data kept in this browser. Where service workers can't run (in-app browsers
+// such as Zalo/Messenger on iPhone), the same server runs inside the page
+// (js/demo-server.js). Resolves true when the service worker is in charge.
 let demoServer = null;
+let inPageDemo = false; // true once we know requests are answered in the page
 export function startDemoServer() {
   demoServer ??= (async () => {
-    if (!('serviceWorker' in navigator)) return false;
     try {
+      if (!navigator.serviceWorker) throw new Error('no service worker');
       await navigator.serviceWorker.register('sw.js');
       if (!navigator.serviceWorker.controller) {
-        await new Promise((resolve) => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true }));
+        // Some embedded browsers register but never hand over control.
+        await Promise.race([
+          new Promise((resolve) => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true })),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('no control')), 5000)),
+        ]);
       }
       return true;
-    } catch { return false; }
+    } catch {
+      inPageDemo = true;
+      return false;
+    }
   })();
   return demoServer;
 }
+/** True when the Pages demo answers in the page (links to api/… won't load by themselves). */
+export const demoInPage = () => inPageDemo;
+
+/** fetch() for API paths that works on the server, with the service worker, and in-page. */
+export async function apiFetch(path, init = {}) {
+  if (globalThis.REDSUN_PREVIEW) {
+    path = path.replace(/^\//, ''); // relative: Pages serves the site under /<repo>/
+    if (!(await startDemoServer())) return (await import('./demo-server.js')).demoFetch(path, init);
+  }
+  return fetch(path, { credentials: 'same-origin', ...init });
+}
+
+/** URL for an API file (photo, CSV) usable in src/href; a blob URL when served in-page. */
+export async function apiFileUrl(path) {
+  if (!globalThis.REDSUN_PREVIEW || (await startDemoServer())) return path;
+  const res = await apiFetch(path);
+  return URL.createObjectURL(await res.blob());
+}
 
 export async function api(path, { method = 'GET', body } = {}) {
-  if (globalThis.REDSUN_PREVIEW) {
-    // No service worker: fall back to the guest-only preview answered in the page.
-    if (!(await startDemoServer())) {
-      const { previewApi } = await import('./preview.js');
-      return previewApi(path, { method, body });
-    }
-    path = path.replace(/^\//, ''); // relative: Pages serves the site under /<repo>/
-  }
   let res;
   try {
-    res = await fetch(path, {
+    res = await apiFetch(path, {
       method,
       headers: body ? { 'Content-Type': 'application/json' } : undefined,
       body: body ? JSON.stringify(body) : undefined,
-      credentials: 'same-origin',
     });
   } catch {
     throw new ApiError('network');
